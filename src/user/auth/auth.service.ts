@@ -1,5 +1,5 @@
 // src/auth/auth.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user.service';
 import { User } from '../entities/user.entity';
@@ -19,11 +19,20 @@ export class AuthService {
     };
   }
 
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(email: string, password: string): Promise<User> {
     const user = await this.userService.findByEmail(email);
-    if (user && bcrypt.compareSync(password, user.password)) {
-      return user; 
+  
+    if (!user) {
+      throw new BadRequestException('Неверный почтовый адрес');
     }
-    return null; 
+  
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+  
+    if (!isPasswordValid) {
+      throw new BadRequestException('Неверный пароль');
+    }
+  
+    return user;
   }
+  
 }

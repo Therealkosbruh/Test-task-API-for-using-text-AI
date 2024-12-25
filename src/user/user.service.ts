@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
+import { LoginUserDto } from './dto/auth-user.dto';
 
 @Injectable()
 export class UserService {
@@ -15,23 +16,35 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { email, password } = createUserDto;
 
-    // Проверка, существует ли уже пользователь с таким email
     const existingUser = await this.userRepository.findOne({ where: { email } });
     if (existingUser) {
       throw new BadRequestException('Этот email уже используется');
     }
 
-    // Хешируем пароль
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Создаём нового пользователя
     const user = this.userRepository.create({
       email,
       password: hashedPassword,
     });
 
-    // Сохраняем пользователя в базе
     return await this.userRepository.save(user);
+  }
+
+  async validateUser(loginUserDto: LoginUserDto): Promise<User | null> {
+    const { email, password } = loginUserDto;
+    const user = await this.findByEmail(email);
+
+    if (!user) {
+      throw new BadRequestException('Пользователь с таким email не найден');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Неверный пароль');
+    }
+
+    return user;
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
