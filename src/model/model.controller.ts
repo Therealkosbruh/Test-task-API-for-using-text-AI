@@ -1,34 +1,46 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, NotFoundException } from '@nestjs/common';
 import { ModelService } from './model.service';
-import { CreateModelDto } from './dto/create-model.dto';
-import { UpdateModelDto } from './dto/update-model.dto';
+import { Model } from './entities/model.entity';
 
-@Controller('model')
+@Controller('models')
 export class ModelController {
   constructor(private readonly modelService: ModelService) {}
 
+  @Post('generate')
+  async generate(
+    @Body() body: {
+      modelId: number;
+      prompt: string;
+      options?: any;
+      image?: string; 
+      mimeType?: string; 
+    },
+  ) {
+    const { modelId, prompt, options, image, mimeType } = body;
+
+    const model = await this.modelService.getModelById(modelId);
+
+    if (!model) {
+      throw new NotFoundException('Model not found');
+    }
+
+    return await this.modelService.generate(
+      model.name,
+      prompt,
+      options,
+      model.apiKey,
+      image,
+      mimeType,
+    );
+  }
+
   @Post()
-  create(@Body() createModelDto: CreateModelDto) {
-    return this.modelService.create(createModelDto);
+  async addModel(@Body() body: Partial<Model>) {
+    return await this.modelService.addModel(body);
   }
 
   @Get()
-  findAll() {
-    return this.modelService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.modelService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateModelDto: UpdateModelDto) {
-    return this.modelService.update(+id, updateModelDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.modelService.remove(+id);
+  async getAllModels() {
+    return await this.modelService.getAllModels();
   }
 }

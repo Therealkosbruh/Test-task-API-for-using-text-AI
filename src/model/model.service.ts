@@ -1,26 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import { CreateModelDto } from './dto/create-model.dto';
-import { UpdateModelDto } from './dto/update-model.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Model } from './entities/model.entity';
+import { ModelFactory } from './model.factory';
+import { GoogleGeminiModel } from './implementations/google-gemini.model'; // Импортируем GoogleGeminiModel
 
 @Injectable()
 export class ModelService {
-  create(createModelDto: CreateModelDto) {
-    return 'This action adds a new model';
+  constructor(
+    @InjectRepository(Model)
+    private readonly modelRepository: Repository<Model>,
+    private readonly modelFactory: ModelFactory,
+  ) {}
+
+  async generate(
+    modelType: string,
+    name: string,
+    prompt: string,
+    options: any,
+    apiKey: string,
+    image?: string, 
+    mimeType?: string, 
+  ): Promise<string> {
+    let modelInstance;
+
+    if (modelType === 'google') {
+      modelInstance = new GoogleGeminiModel(apiKey, name);
+    } else {
+      modelInstance = this.modelFactory.createModel(name, apiKey);
+    }
+
+    const imageOptions = image && mimeType ? { image: Buffer.from(image, 'base64'), mimeType } : undefined;
+
+    return await modelInstance.generateResponse(prompt, { ...options, ...imageOptions });
   }
 
-  findAll() {
-    return `This action returns all model`;
+  async addModel(modelData: Partial<Model>): Promise<Model> {
+    const model = this.modelRepository.create(modelData);
+    return await this.modelRepository.save(model);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} model`;
+  async getAllModels(): Promise<Model[]> {
+    return await this.modelRepository.find();
   }
 
-  update(id: number, updateModelDto: UpdateModelDto) {
-    return `This action updates a #${id} model`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} model`;
+  async getModelById(id: number): Promise<Model> {
+    return await this.modelRepository.findOne({ where: { id } });
   }
 }
